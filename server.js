@@ -49,7 +49,8 @@ async function init(){
 }
 const clean=(v,max=250)=>String(v??"").trim().slice(0,max);
 const emailOk=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-const normalizePhone=v=>{const raw=String(v??"").trim(),digits=raw.replace(/\D/g,"");return raw.startsWith("+")?`+${digits}`:digits};\nconst phoneOk=v=>/^\+?\d{7,15}$/.test(v);
+const normalizePhone=v=>{const raw=String(v??"").trim(),digits=raw.replace(/\D/g,"");return raw.startsWith("+")?`+${digits}`:digits};
+const phoneOk=v=>/^\+?\d{7,15}$/.test(v);
 const parseCookies=req=>Object.fromEntries((req.headers.cookie||"").split(";").filter(Boolean).map(x=>{const i=x.indexOf("=");return[decodeURIComponent(x.slice(0,i).trim()),decodeURIComponent(x.slice(i+1))]}));
 const hash=v=>crypto.createHash("sha256").update(v).digest("hex");
 const safeAdmin=a=>({id:Number(a.id),email:String(a.email),name:String(a.name),role:String(a.role)});
@@ -85,7 +86,13 @@ app.delete("/api/admin/products/:id",auth,async(req,res)=>{const id=Number(req.p
 
 app.post("/api/orders",async(req,res)=>{
  try{if(!db)return res.status(503).json({error:"Ordering is temporarily unavailable."});const b=req.body||{},fullName=clean(b.fullName,100),phone=normalizePhone(clean(b.phone,30)),email=clean(b.email,150).toLowerCase(),address=clean(b.address,300),region=clean(b.region,100),instructions=clean(b.instructions,300),reference=clean(b.paymentReference,80),items=Array.isArray(b.items)?b.items.slice(0,25):[];
- if(!fullName)return res.status(400).json({error:"Please enter your full name."});\n if(!phoneOk(phone))return res.status(400).json({error:"Please enter a valid phone number. You may include +220, spaces or dashes."});\n if(!emailOk(email))return res.status(400).json({error:"Please enter a valid email address."});\n if(!region)return res.status(400).json({error:"Please enter your region or location."});\n if(!address)return res.status(400).json({error:"Please enter your delivery address."});\n if(!reference)return res.status(400).json({error:"Please enter the Wave payment reference."});\n if(!items.length)return res.status(400).json({error:"Your shopping bag is empty."});
+ if(!fullName)return res.status(400).json({error:"Please enter your full name."});
+ if(!phoneOk(phone))return res.status(400).json({error:"Please enter a valid phone number. You may include +220, spaces or dashes."});
+ if(!emailOk(email))return res.status(400).json({error:"Please enter a valid email address."});
+ if(!region)return res.status(400).json({error:"Please enter your region or location."});
+ if(!address)return res.status(400).json({error:"Please enter your delivery address."});
+ if(!reference)return res.status(400).json({error:"Please enter the Wave payment reference."});
+ if(!items.length)return res.status(400).json({error:"Your shopping bag is empty."});
  let subtotal=0,verified=[];for(const x of items){if(!Number.isInteger(x.productId)||!Number.isInteger(x.quantity)||x.quantity<1||x.quantity>20)return res.status(400).json({error:"Invalid cart item."});const row=(await db.execute({sql:"SELECT * FROM products WHERE id=? AND archived=0",args:[x.productId]})).rows[0];if(!row||Number(row.stock)<x.quantity)return res.status(409).json({error:`${clean(x.name,120)} does not have enough stock.`});const unit=Number(row.sale_price??row.price);subtotal+=unit*x.quantity;verified.push({x,row,unit})}
  const delivery=subtotal>=3500?0:150,total=subtotal+delivery,year=new Date().getUTCFullYear(),number=`PL-${year}-${String(Date.now()).slice(-5)}`,now=Date.now();if((await db.execute({sql:"SELECT 1 FROM payments WHERE reference=?",args:[reference]})).rows.length)return res.status(409).json({error:"This Wave reference has already been used."});
  const inserted=await db.execute({sql:"INSERT INTO orders(order_number,email,full_name,phone,address,region,instructions,status,subtotal,delivery_fee,total,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",args:[number,email,fullName,phone,address,region,instructions||null,"Payment Pending",subtotal,delivery,total,now]});const orderId=Number(inserted.rows[0].id),statements=[];
