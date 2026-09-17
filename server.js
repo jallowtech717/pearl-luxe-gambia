@@ -13,7 +13,7 @@ app.use(helmet({contentSecurityPolicy:false}));
 app.use(express.json({limit:"4mb"}));
 app.use("/api",rateLimit({windowMs:60_000,limit:100,standardHeaders:true,legacyHeaders:false}));
 app.use("/api/admin/login",rateLimit({windowMs:15*60_000,limit:8,standardHeaders:true,legacyHeaders:false}));
-app.use(express.static("public",{maxAge:"1h",etag:true}));
+app.use(express.static("public",{maxAge:"1h",etag:true,setHeaders:(res,path)=>{if(path.endsWith(".html"))res.setHeader("Cache-Control","no-cache, no-store, must-revalidate")}}));
 
 const schema=[
 "CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,sku TEXT UNIQUE NOT NULL,price REAL NOT NULL,sale_price REAL,stock INTEGER NOT NULL DEFAULT 0,description TEXT NOT NULL DEFAULT '',category TEXT NOT NULL DEFAULT 'Accessories',sizes TEXT NOT NULL DEFAULT 'One Size',colors TEXT NOT NULL DEFAULT '',featured INTEGER NOT NULL DEFAULT 0,archived INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL DEFAULT 0)",
