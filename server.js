@@ -53,5 +53,5 @@ app.post("/api/orders",async(req,res)=>{
 app.get("/api/orders/track",async(req,res)=>{
  try{if(!db)return res.status(503).json({error:"Tracking is temporarily unavailable."});const order=clean(req.query.order,30).toUpperCase(),phone=clean(req.query.phone,20).replace(/\s/g,"");const out=await db.execute({sql:"SELECT order_number,status,created_at FROM orders WHERE order_number=? AND phone=?",args:[order,phone]});if(!out.rows.length)return res.status(404).json({error:"No matching order was found."});res.json({orderNumber:out.rows[0].order_number,status:out.rows[0].status,updatedAt:out.rows[0].created_at})}catch(e){res.status(500).json({error:"Tracking is temporarily unavailable."})}
 });
-app.get("*",(req,res)=>res.sendFile("index.html",{root:"public"}));
+app.use((req,res)=>res.sendFile("index.html",{root:"public"}));
 init().then(()=>app.listen(port,"0.0.0.0",()=>console.log(`PEARL LUXE listening on ${port}`))).catch(e=>{console.error(e);process.exit(1)});
